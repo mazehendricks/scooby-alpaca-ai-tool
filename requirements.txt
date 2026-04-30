@@ -18,8 +18,9 @@ numpy>=1.26.2
 # Rate Limiting & Safety
 ratelimit>=2.2.1
 
-# Logging
+# Logging & Terminal Colors
 colorlog>=6.8.0
+colorama>=0.4.6
 
 # Date/Time handling
 python-dateutil>=2.8.2
