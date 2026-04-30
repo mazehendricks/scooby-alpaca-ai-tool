@@ -11,14 +11,14 @@ let tradingState = {
     intervalId: null,
     liveUpdateIntervalId: null,
     config: {
-        initialCapital: 10000,
+        initialCapital: 10,
         algorithm: 'PPO',
         riskTolerance: 0.5,
         tradingSpeed: 1000
     },
     portfolio: {
-        value: 10000,
-        cash: 10000,
+        value: 10,
+        cash: 10,
         positions: []
     },
     metrics: {
@@ -660,33 +660,10 @@ function updatePositionsTable(positions) {
 // UI UPDATES
 // ============================================================================
 
+// This function is no longer needed - all data comes from Alpaca API via updateLiveMetrics()
+// Keeping it as a stub in case it's called from elsewhere
 function updatePortfolioDisplay() {
-    // Simulate portfolio changes
-    const change = (Math.random() - 0.48) * 100; // Slight upward bias
-    tradingState.portfolio.value += change;
-    
-    const totalReturn = tradingState.portfolio.value - tradingState.config.initialCapital;
-    const returnPercent = (totalReturn / tradingState.config.initialCapital) * 100;
-    
-    // Update metrics
-    tradingState.metrics.totalReturn = totalReturn;
-    tradingState.metrics.sharpeRatio = (Math.random() * 2).toFixed(2);
-    tradingState.metrics.maxDrawdown = -(Math.random() * 15).toFixed(2);
-    tradingState.metrics.winRate = (45 + Math.random() * 20).toFixed(2);
-    
-    // Update UI
-    document.getElementById('currentValue').textContent = `$${tradingState.portfolio.value.toFixed(2)}`;
-    document.getElementById('valueChange').textContent = `${returnPercent >= 0 ? '+' : ''}${returnPercent.toFixed(2)}%`;
-    document.getElementById('valueChange').className = `metric-change ${returnPercent >= 0 ? 'positive' : 'negative'}`;
-    
-    document.getElementById('totalReturn').textContent = `$${totalReturn.toFixed(2)}`;
-    document.getElementById('returnPercent').textContent = `${returnPercent >= 0 ? '+' : ''}${returnPercent.toFixed(2)}%`;
-    document.getElementById('returnPercent').className = `metric-change ${returnPercent >= 0 ? 'positive' : 'negative'}`;
-    
-    document.getElementById('sharpeRatio').textContent = tradingState.metrics.sharpeRatio;
-    document.getElementById('maxDrawdown').textContent = `${tradingState.metrics.maxDrawdown}%`;
-    document.getElementById('winRate').textContent = `${tradingState.metrics.winRate}%`;
-    document.getElementById('totalTrades').textContent = tradingState.metrics.totalTrades;
+    console.log('Portfolio display updated via live API data');
 }
 
 function updateTechnicalIndicators() {
