@@ -1308,3 +1308,182 @@ header {
         transform: scale(1.5);
     }
 }
+
+/* Risk Controls Section */
+.risk-controls-section {
+    background: var(--card-bg);
+    padding: 30px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+}
+
+.risk-controls-section h2 {
+    color: var(--primary-color);
+    margin-bottom: 25px;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.risk-controls-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.risk-control-card {
+    background: var(--card-bg-light);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.risk-control-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 5px 15px rgba(0, 217, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.risk-control-card h3 {
+    color: var(--accent-color);
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.control-group {
+    margin-bottom: 15px;
+}
+
+.control-group label {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.control-group input {
+    width: 100%;
+    padding: 10px;
+    background: var(--dark-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.control-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.1);
+}
+
+.btn-small {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    margin-top: 5px;
+}
+
+.btn-small.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: var(--dark-bg);
+}
+
+.btn-small.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 217, 255, 0.4);
+}
+
+.btn-small.btn-warning {
+    background: linear-gradient(135deg, var(--warning-color), #FF9800);
+    color: var(--dark-bg);
+}
+
+.btn-small.btn-warning:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(255, 193, 7, 0.4);
+}
+
+.btn-small.btn-success {
+    background: linear-gradient(135deg, var(--success-color), #00C853);
+    color: var(--dark-bg);
+}
+
+.btn-small.btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 230, 118, 0.4);
+}
+
+.emergency-controls {
+    text-align: center;
+    padding: 20px;
+    background: rgba(255, 23, 68, 0.1);
+    border: 2px solid var(--danger-color);
+    border-radius: 12px;
+    margin-top: 20px;
+}
+
+.btn-danger-large {
+    padding: 20px 40px;
+    background: linear-gradient(135deg, var(--danger-color), #D50000);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 5px 20px rgba(255, 23, 68, 0.3);
+}
+
+.btn-danger-large:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(255, 23, 68, 0.5);
+    background: linear-gradient(135deg, #FF1744, #F50057);
+}
+
+.btn-danger-large .btn-icon {
+    font-size: 1.5rem;
+}
+
+.btn-danger-large .btn-label {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.btn-danger-large .btn-main {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.btn-danger-large .btn-sub {
+    font-size: 0.85rem;
+    font-weight: 400;
+    opacity: 0.9;
+}
+
+.emergency-warning {
+    color: var(--danger-color);
+    font-size: 0.9rem;
+    margin-top: 15px;
+    font-weight: 600;
+}

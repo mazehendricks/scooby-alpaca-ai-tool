@@ -370,6 +370,276 @@ def recent_trades():
 
 
 # ============================================================================
+# LIVE METRICS ENDPOINTS
+# ============================================================================
+
+@app.route('/api/metrics/live', methods=['GET'])
+def live_metrics():
+    """Get live portfolio metrics including performance stats"""
+    if not alpaca_client.authenticated:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        account = alpaca_client.api.get_account()
+        positions = alpaca_client.get_positions()
+        cb_status = circuit_breaker.get_status()
+        
+        # Calculate metrics
+        portfolio_value = float(account.portfolio_value)
+        equity = float(account.equity)
+        cash = float(account.cash)
+        buying_power = float(account.buying_power)
+        
+        # Calculate total P&L
+        total_pnl = sum(pos['pnl'] for pos in positions)
+        total_pnl_percent = (total_pnl / portfolio_value * 100) if portfolio_value > 0 else 0
+        
+        # Calculate win rate from recent trades
+        trades = circuit_breaker.get_recent_trades(100)
+        winning_trades = sum(1 for t in trades if t.get('pnl', 0) > 0)
+        win_rate = (winning_trades / len(trades) * 100) if trades else 0
+        
+        # Calculate max drawdown (simplified)
+        starting_balance = cb_status.get('starting_balance', portfolio_value)
+        max_drawdown = ((portfolio_value - starting_balance) / starting_balance * 100) if starting_balance > 0 else 0
+        
+        # Calculate Sharpe ratio (simplified daily estimate)
+        daily_return = cb_status.get('daily_pnl', 0) / starting_balance if starting_balance > 0 else 0
+        sharpe_ratio = daily_return * (252 ** 0.5) if daily_return != 0 else 0  # Annualized
+        
+        return jsonify({
+            'portfolio_value': portfolio_value,
+            'equity': equity,
+            'cash': cash,
+            'buying_power': buying_power,
+            'total_return': total_pnl,
+            'total_return_percent': total_pnl_percent,
+            'sharpe_ratio': round(sharpe_ratio, 2),
+            'max_drawdown': round(max_drawdown, 2),
+            'win_rate': round(win_rate, 2),
+            'total_trades': len(trades),
+            'positions_count': len(positions),
+            'daily_pnl': cb_status.get('daily_pnl', 0),
+            'daily_trades': cb_status.get('daily_trades_count', 0),
+            'timestamp': datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        logger.error(f"Live metrics error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/metrics/performance', methods=['GET'])
+def performance_metrics():
+    """Get detailed performance metrics"""
+    if not alpaca_client.authenticated:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        account = alpaca_client.api.get_account()
+        positions = alpaca_client.get_positions()
+        
+        portfolio_value = float(account.portfolio_value)
+        
+        # Position analysis
+        position_values = [pos['current_value'] for pos in positions]
+        total_position_value = sum(position_values)
+        
+        # Concentration risk
+        largest_position = max(position_values) if position_values else 0
+        concentration_risk = (largest_position / portfolio_value * 100) if portfolio_value > 0 else 0
+        
+        # Diversification
+        diversification_score = len(positions) * 10  # Simple score
+        
+        return jsonify({
+            'portfolio_value': portfolio_value,
+            'positions_count': len(positions),
+            'total_position_value': total_position_value,
+            'cash_percent': (float(account.cash) / portfolio_value * 100) if portfolio_value > 0 else 0,
+            'concentration_risk': round(concentration_risk, 2),
+            'diversification_score': min(diversification_score, 100),
+            'positions': positions,
+            'timestamp': datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        logger.error(f"Performance metrics error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# RISK MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.route('/api/risk/limits', methods=['GET'])
+def get_risk_limits():
+    """Get current risk management limits"""
+    try:
+        limits = circuit_breaker.config
+        status = circuit_breaker.get_status()
+        
+        return jsonify({
+            'limits': limits,
+            'current_status': status,
+            'timestamp': datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        logger.error(f"Get risk limits error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/risk/limits', methods=['POST'])
+def update_risk_limits():
+    """Update risk management limits"""
+    try:
+        data = request.get_json()
+        
+        # Update circuit breaker configuration
+        if 'max_daily_trades' in data:
+            circuit_breaker.config['max_daily_trades'] = int(data['max_daily_trades'])
+        
+        if 'max_daily_loss_percent' in data:
+            circuit_breaker.config['max_daily_loss_percent'] = float(data['max_daily_loss_percent'])
+        
+        if 'max_position_size_percent' in data:
+            circuit_breaker.config['max_position_size_percent'] = float(data['max_position_size_percent'])
+        
+        if 'min_account_balance' in data:
+            circuit_breaker.config['min_account_balance'] = float(data['min_account_balance'])
+        
+        logger.info(f"Risk limits updated: {circuit_breaker.config}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Risk limits updated',
+            'limits': circuit_breaker.config
+        }), 200
+    except Exception as e:
+        logger.error(f"Update risk limits error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f"Error: {str(e)}"
+        }), 500
+
+
+@app.route('/api/risk/stop-loss', methods=['POST'])
+def set_stop_loss():
+    """Set stop-loss for a position"""
+    if not alpaca_client.authenticated:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        data = request.get_json()
+        symbol = data.get('symbol', '').upper()
+        stop_price = float(data.get('stop_price', 0))
+        
+        if not symbol or stop_price <= 0:
+            return jsonify({'error': 'Invalid symbol or stop price'}), 400
+        
+        # Get current position
+        positions = alpaca_client.get_positions()
+        position = next((p for p in positions if p['symbol'] == symbol), None)
+        
+        if not position:
+            return jsonify({'error': f'No position found for {symbol}'}), 404
+        
+        # Create stop-loss order
+        order = alpaca_client.api.submit_order(
+            symbol=symbol,
+            qty=position['quantity'],
+            side='sell',
+            type='stop',
+            stop_price=stop_price,
+            time_in_force='gtc'
+        )
+        
+        logger.info(f"Stop-loss set for {symbol} at ${stop_price}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Stop-loss set for {symbol}',
+            'order_id': order.id,
+            'stop_price': stop_price
+        }), 200
+    except Exception as e:
+        logger.error(f"Stop-loss error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f"Error: {str(e)}"
+        }), 500
+
+
+@app.route('/api/risk/take-profit', methods=['POST'])
+def set_take_profit():
+    """Set take-profit for a position"""
+    if not alpaca_client.authenticated:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        data = request.get_json()
+        symbol = data.get('symbol', '').upper()
+        limit_price = float(data.get('limit_price', 0))
+        
+        if not symbol or limit_price <= 0:
+            return jsonify({'error': 'Invalid symbol or limit price'}), 400
+        
+        # Get current position
+        positions = alpaca_client.get_positions()
+        position = next((p for p in positions if p['symbol'] == symbol), None)
+        
+        if not position:
+            return jsonify({'error': f'No position found for {symbol}'}), 404
+        
+        # Create take-profit order
+        order = alpaca_client.api.submit_order(
+            symbol=symbol,
+            qty=position['quantity'],
+            side='sell',
+            type='limit',
+            limit_price=limit_price,
+            time_in_force='gtc'
+        )
+        
+        logger.info(f"Take-profit set for {symbol} at ${limit_price}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Take-profit set for {symbol}',
+            'order_id': order.id,
+            'limit_price': limit_price
+        }), 200
+    except Exception as e:
+        logger.error(f"Take-profit error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f"Error: {str(e)}"
+        }), 500
+
+
+@app.route('/api/risk/close-all', methods=['POST'])
+def close_all_positions():
+    """Close all open positions (emergency liquidation)"""
+    if not alpaca_client.authenticated:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        # Close all positions
+        alpaca_client.api.close_all_positions()
+        
+        logger.warning("🚨 All positions closed (emergency liquidation)")
+        
+        return jsonify({
+            'success': True,
+            'message': 'All positions closed'
+        }), 200
+    except Exception as e:
+        logger.error(f"Close all positions error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f"Error: {str(e)}"
+        }), 500
+
+
+# ============================================================================
 # HEALTH CHECK
 # ============================================================================
 

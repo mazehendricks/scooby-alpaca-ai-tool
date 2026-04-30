@@ -247,6 +247,75 @@
                 </div>
             </section>
 
+            <!-- Risk Management Controls -->
+            <section class="risk-controls-section">
+                <h2>🛡️ Advanced Risk Management Controls</h2>
+                <div class="risk-controls-grid">
+                    <div class="risk-control-card">
+                        <h3>📊 Position Limits</h3>
+                        <div class="control-group">
+                            <label for="maxDailyTrades">Max Daily Trades</label>
+                            <input type="number" id="maxDailyTrades" value="50" min="1" max="500">
+                        </div>
+                        <div class="control-group">
+                            <label for="maxPositionSize">Max Position Size (%)</label>
+                            <input type="number" id="maxPositionSize" value="20" min="1" max="100" step="1">
+                        </div>
+                        <button class="btn-small btn-primary" onclick="updateRiskLimits()">Update Limits</button>
+                    </div>
+                    
+                    <div class="risk-control-card">
+                        <h3>💰 Loss Protection</h3>
+                        <div class="control-group">
+                            <label for="maxDailyLoss">Max Daily Loss (%)</label>
+                            <input type="number" id="maxDailyLoss" value="5" min="0.1" max="50" step="0.1">
+                        </div>
+                        <div class="control-group">
+                            <label for="minAccountBalance">Min Account Balance ($)</label>
+                            <input type="number" id="minAccountBalance" value="1000" min="0" step="100">
+                        </div>
+                        <button class="btn-small btn-primary" onclick="updateRiskLimits()">Update Limits</button>
+                    </div>
+                    
+                    <div class="risk-control-card">
+                        <h3>🎯 Position Management</h3>
+                        <div class="control-group">
+                            <label for="stopLossSymbol">Symbol</label>
+                            <input type="text" id="stopLossSymbol" placeholder="AAPL" style="text-transform: uppercase;">
+                        </div>
+                        <div class="control-group">
+                            <label for="stopLossPrice">Stop-Loss Price ($)</label>
+                            <input type="number" id="stopLossPrice" placeholder="150.00" step="0.01">
+                        </div>
+                        <button class="btn-small btn-warning" onclick="handleSetStopLoss()">Set Stop-Loss</button>
+                    </div>
+                    
+                    <div class="risk-control-card">
+                        <h3>💎 Take-Profit Orders</h3>
+                        <div class="control-group">
+                            <label for="takeProfitSymbol">Symbol</label>
+                            <input type="text" id="takeProfitSymbol" placeholder="AAPL" style="text-transform: uppercase;">
+                        </div>
+                        <div class="control-group">
+                            <label for="takeProfitPrice">Take-Profit Price ($)</label>
+                            <input type="number" id="takeProfitPrice" placeholder="200.00" step="0.01">
+                        </div>
+                        <button class="btn-small btn-success" onclick="handleSetTakeProfit()">Set Take-Profit</button>
+                    </div>
+                </div>
+                
+                <div class="emergency-controls">
+                    <button class="btn btn-danger-large" onclick="closeAllPositions()">
+                        <span class="btn-icon">🚨</span>
+                        <span class="btn-label">
+                            <span class="btn-main">CLOSE ALL POSITIONS</span>
+                            <span class="btn-sub">Emergency Liquidation</span>
+                        </span>
+                    </button>
+                    <p class="emergency-warning">⚠️ This will immediately close all open positions at market price</p>
+                </div>
+            </section>
+
             <!-- Risk Warnings -->
             <section class="warnings-section">
                 <h2>⚠️ Risk Management & Safety Controls</h2>

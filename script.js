@@ -9,6 +9,7 @@ let tradingState = {
     isPaused: false,
     authenticated: false,
     intervalId: null,
+    liveUpdateIntervalId: null,
     config: {
         initialCapital: 10000,
         algorithm: 'PPO',
@@ -26,6 +27,12 @@ let tradingState = {
         maxDrawdown: 0,
         winRate: 0,
         totalTrades: 0
+    },
+    riskLimits: {
+        maxDailyTrades: 50,
+        maxDailyLossPercent: 5,
+        maxPositionSizePercent: 20,
+        minAccountBalance: 1000
     }
 };
 
@@ -43,6 +50,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Check server health and authentication
     await checkServerHealth();
     await checkAuthStatus();
+    
+    // Start live updates polling
+    startLiveUpdates();
     
     console.log('✅ System ready');
 });
@@ -64,6 +74,22 @@ function initializeEventListeners() {
     document.getElementById('riskTolerance').addEventListener('input', updateRiskToleranceDisplay);
     document.getElementById('riskTolerance').addEventListener('change', updateConfig);
     document.getElementById('tradingSpeed').addEventListener('change', updateConfig);
+    
+    // Risk management inputs
+    document.getElementById('maxDailyTrades').addEventListener('change', updateRiskConfig);
+    document.getElementById('maxPositionSize').addEventListener('change', updateRiskConfig);
+    document.getElementById('maxDailyLoss').addEventListener('change', updateRiskConfig);
+    document.getElementById('minAccountBalance').addEventListener('change', updateRiskConfig);
+}
+
+function updateRiskConfig() {
+    tradingState.riskLimits = {
+        maxDailyTrades: parseInt(document.getElementById('maxDailyTrades').value),
+        maxDailyLossPercent: parseFloat(document.getElementById('maxDailyLoss').value),
+        maxPositionSizePercent: parseFloat(document.getElementById('maxPositionSize').value),
+        minAccountBalance: parseFloat(document.getElementById('minAccountBalance').value)
+    };
+    console.log('⚙️ Risk limits updated:', tradingState.riskLimits);
 }
 
 function updateRiskToleranceDisplay() {
@@ -109,8 +135,11 @@ async function handleStart() {
     addTradeLog('✅ Trading system started', 'success');
     updateAIExplanation('System active. Analyzing market conditions and executing trades based on ' + tradingState.config.algorithm + ' algorithm.');
     
-    // Start trading loop
+    // Start trading loop and ensure live updates are running
     startTradingLoop();
+    if (!tradingState.liveUpdateIntervalId) {
+        startLiveUpdates();
+    }
 }
 
 async function handlePause() {
@@ -156,6 +185,16 @@ async function handleReset() {
         if (tradingState.intervalId) {
             clearInterval(tradingState.intervalId);
             tradingState.intervalId = null;
+        }
+        
+        // Reset circuit breaker
+        try {
+            await fetch(`${API_BASE_URL}/circuit-breaker/reset`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+        } catch (error) {
+            console.error('Circuit breaker reset error:', error);
         }
         
         // Reset UI
@@ -228,6 +267,7 @@ function startTradingLoop() {
     tradingState.intervalId = setInterval(async () => {
         if (tradingState.isRunning && !tradingState.isPaused) {
             await executeTradingCycle();
+            await loadPositions(); // Update positions table
         }
     }, tradingState.config.tradingSpeed);
 }
@@ -241,9 +281,7 @@ async function executeTradingCycle() {
             await executeTradeDecision(decision);
         }
         
-        // Update portfolio and metrics
-        await updatePortfolioData();
-        updatePortfolioDisplay();
+        // Update technical indicators
         updateTechnicalIndicators();
         
     } catch (error) {
@@ -397,6 +435,228 @@ async function updatePortfolioData() {
 }
 
 // ============================================================================
+// LIVE UPDATES
+// ============================================================================
+
+function startLiveUpdates() {
+    // Clear any existing interval
+    if (tradingState.liveUpdateIntervalId) {
+        clearInterval(tradingState.liveUpdateIntervalId);
+    }
+    
+    // Update every 2 seconds
+    tradingState.liveUpdateIntervalId = setInterval(async () => {
+        await updateLiveMetrics();
+    }, 2000);
+    
+    // Initial update
+    updateLiveMetrics();
+    
+    console.log('📡 Live updates started');
+}
+
+function stopLiveUpdates() {
+    if (tradingState.liveUpdateIntervalId) {
+        clearInterval(tradingState.liveUpdateIntervalId);
+        tradingState.liveUpdateIntervalId = null;
+        console.log('📡 Live updates stopped');
+    }
+}
+
+async function updateLiveMetrics() {
+    if (!tradingState.authenticated) return;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/metrics/live`);
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Update portfolio metrics
+            tradingState.portfolio.value = data.portfolio_value;
+            tradingState.metrics.totalReturn = data.total_return;
+            tradingState.metrics.sharpeRatio = data.sharpe_ratio;
+            tradingState.metrics.maxDrawdown = data.max_drawdown;
+            tradingState.metrics.winRate = data.win_rate;
+            tradingState.metrics.totalTrades = data.total_trades;
+            
+            // Update UI
+            updateLivePortfolioDisplay(data);
+        }
+    } catch (error) {
+        console.error('Live metrics update error:', error);
+    }
+}
+
+function updateLivePortfolioDisplay(data) {
+    // Portfolio Value
+    document.getElementById('currentValue').textContent = `$${data.portfolio_value.toFixed(2)}`;
+    
+    const returnPercent = data.total_return_percent;
+    document.getElementById('valueChange').textContent = `${returnPercent >= 0 ? '+' : ''}${returnPercent.toFixed(2)}%`;
+    document.getElementById('valueChange').className = `metric-change ${returnPercent >= 0 ? 'positive' : 'negative'}`;
+    
+    // Total Return
+    document.getElementById('totalReturn').textContent = `$${data.total_return.toFixed(2)}`;
+    document.getElementById('returnPercent').textContent = `${returnPercent >= 0 ? '+' : ''}${returnPercent.toFixed(2)}%`;
+    document.getElementById('returnPercent').className = `metric-change ${returnPercent >= 0 ? 'positive' : 'negative'}`;
+    
+    // Sharpe Ratio
+    document.getElementById('sharpeRatio').textContent = data.sharpe_ratio.toFixed(2);
+    
+    // Max Drawdown
+    document.getElementById('maxDrawdown').textContent = `${data.max_drawdown.toFixed(2)}%`;
+    
+    // Win Rate
+    document.getElementById('winRate').textContent = `${data.win_rate.toFixed(2)}%`;
+    
+    // Total Trades
+    document.getElementById('totalTrades').textContent = data.total_trades;
+}
+
+// ============================================================================
+// RISK MANAGEMENT FUNCTIONS
+// ============================================================================
+
+async function updateRiskLimits() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/risk/limits`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(tradingState.riskLimits)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            addTradeLog('✅ Risk limits updated', 'success');
+            return true;
+        } else {
+            addTradeLog(`❌ Failed to update risk limits: ${data.message}`, 'error');
+            return false;
+        }
+    } catch (error) {
+        console.error('Update risk limits error:', error);
+        addTradeLog('❌ Error updating risk limits', 'error');
+        return false;
+    }
+}
+
+async function setStopLoss(symbol, stopPrice) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/risk/stop-loss`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol, stop_price: stopPrice })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            addTradeLog(`✅ Stop-loss set for ${symbol} at $${stopPrice}`, 'success');
+            return true;
+        } else {
+            addTradeLog(`❌ Failed to set stop-loss: ${data.message}`, 'error');
+            return false;
+        }
+    } catch (error) {
+        console.error('Set stop-loss error:', error);
+        addTradeLog('❌ Error setting stop-loss', 'error');
+        return false;
+    }
+}
+
+async function setTakeProfit(symbol, limitPrice) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/risk/take-profit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol, limit_price: limitPrice })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            addTradeLog(`✅ Take-profit set for ${symbol} at $${limitPrice}`, 'success');
+            return true;
+        } else {
+            addTradeLog(`❌ Failed to set take-profit: ${data.message}`, 'error');
+            return false;
+        }
+    } catch (error) {
+        console.error('Set take-profit error:', error);
+        addTradeLog('❌ Error setting take-profit', 'error');
+        return false;
+    }
+}
+
+async function closeAllPositions() {
+    if (!confirm('⚠️ Are you sure you want to close ALL positions? This action cannot be undone.')) {
+        return false;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/risk/close-all`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            addTradeLog('🚨 All positions closed (emergency liquidation)', 'warning');
+            return true;
+        } else {
+            addTradeLog(`❌ Failed to close positions: ${data.message}`, 'error');
+            return false;
+        }
+    } catch (error) {
+        console.error('Close all positions error:', error);
+        addTradeLog('❌ Error closing positions', 'error');
+        return false;
+    }
+}
+
+async function loadPositions() {
+    if (!tradingState.authenticated) return;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/account/positions`);
+        if (response.ok) {
+            const data = await response.json();
+            updatePositionsTable(data.positions);
+        }
+    } catch (error) {
+        console.error('Load positions error:', error);
+    }
+}
+
+function updatePositionsTable(positions) {
+    const tbody = document.getElementById('holdingsBody');
+    
+    if (!positions || positions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="no-data">No positions currently held. Start trading to begin building your portfolio.</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = positions.map(pos => {
+        const pnlClass = pos.pnl >= 0 ? 'positive' : 'negative';
+        const pnlSign = pos.pnl >= 0 ? '+' : '';
+        
+        return `
+            <tr>
+                <td><strong>${pos.symbol}</strong></td>
+                <td>${pos.quantity}</td>
+                <td>$${pos.average_price.toFixed(2)}</td>
+                <td>$${pos.current_price.toFixed(2)}</td>
+                <td>$${pos.current_value.toFixed(2)}</td>
+                <td class="${pnlClass}">${pnlSign}$${pos.pnl.toFixed(2)} (${pnlSign}${pos.pnl_percent.toFixed(2)}%)</td>
+                <td>${((pos.current_value / tradingState.portfolio.value) * 100).toFixed(1)}%</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// ============================================================================
 // UI UPDATES
 // ============================================================================
 
@@ -488,5 +748,59 @@ function formatCurrency(value) {
 function formatPercent(value) {
     return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
 }
+
+// ============================================================================
+// RISK MANAGEMENT UI HANDLERS
+// ============================================================================
+
+async function handleSetStopLoss() {
+    const symbol = document.getElementById('stopLossSymbol').value.toUpperCase().trim();
+    const stopPrice = parseFloat(document.getElementById('stopLossPrice').value);
+    
+    if (!symbol) {
+        alert('Please enter a symbol');
+        return;
+    }
+    
+    if (!stopPrice || stopPrice <= 0) {
+        alert('Please enter a valid stop-loss price');
+        return;
+    }
+    
+    const success = await setStopLoss(symbol, stopPrice);
+    
+    if (success) {
+        document.getElementById('stopLossSymbol').value = '';
+        document.getElementById('stopLossPrice').value = '';
+    }
+}
+
+async function handleSetTakeProfit() {
+    const symbol = document.getElementById('takeProfitSymbol').value.toUpperCase().trim();
+    const limitPrice = parseFloat(document.getElementById('takeProfitPrice').value);
+    
+    if (!symbol) {
+        alert('Please enter a symbol');
+        return;
+    }
+    
+    if (!limitPrice || limitPrice <= 0) {
+        alert('Please enter a valid take-profit price');
+        return;
+    }
+    
+    const success = await setTakeProfit(symbol, limitPrice);
+    
+    if (success) {
+        document.getElementById('takeProfitSymbol').value = '';
+        document.getElementById('takeProfitPrice').value = '';
+    }
+}
+
+// Make functions globally accessible
+window.updateRiskLimits = updateRiskLimits;
+window.handleSetStopLoss = handleSetStopLoss;
+window.handleSetTakeProfit = handleSetTakeProfit;
+window.closeAllPositions = closeAllPositions;
 
 console.log('📊 Alpaca AI Trading System loaded');
