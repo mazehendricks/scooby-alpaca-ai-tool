@@ -7,6 +7,135 @@
     box-sizing: border-box;
 }
 
+/* Editable value styles */
+.editable {
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    padding: 2px 6px;
+}
+
+.editable:hover {
+    background: rgba(0, 217, 255, 0.1);
+    transform: scale(1.02);
+    box-shadow: 0 0 10px rgba(0, 217, 255, 0.3);
+}
+
+.editable::after {
+    content: '✏️';
+    position: absolute;
+    right: -20px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    font-size: 0.8em;
+    transition: opacity 0.2s ease;
+}
+
+.editable:hover::after {
+    opacity: 0.6;
+}
+
+.value-flash {
+    animation: flashValue 0.5s ease;
+}
+
+@keyframes flashValue {
+    0%, 100% { background: transparent; }
+    50% { background: rgba(0, 217, 255, 0.3); }
+}
+
+/* Console Styles */
+.console-section {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 30px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.console-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.console-output {
+    background: #000;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px;
+    height: 400px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #00ff00;
+}
+
+.console-output::-webkit-scrollbar {
+    width: 10px;
+}
+
+.console-output::-webkit-scrollbar-track {
+    background: #111;
+}
+
+.console-output::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 5px;
+}
+
+.console-line {
+    margin-bottom: 4px;
+    display: flex;
+    gap: 8px;
+    animation: consoleFadeIn 0.3s ease;
+}
+
+@keyframes consoleFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.console-timestamp {
+    color: #666;
+    flex-shrink: 0;
+}
+
+.console-tag {
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.console-tag.system { color: #00D9FF; }
+.console-tag.trade { color: #00E676; }
+.console-tag.error { color: #FF1744; }
+.console-tag.warning { color: #FFC107; }
+.console-tag.api { color: #7C4DFF; }
+.console-tag.decision { color: #00FFB3; }
+
+.console-message {
+    color: #ccc;
+    word-break: break-word;
+}
+
+.console-line.success .console-message { color: #00E676; }
+.console-line.error .console-message { color: #FF1744; }
+.console-line.warning .console-message { color: #FFC107; }
+.console-line.info .console-message { color: #00D9FF; }
+
 :root {
     /* Professional Trading Platform Colors */
     --primary-color: #00D9FF;

@@ -3,11 +3,21 @@
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
+// DEMO MODE - Set to false for LIVE paper trading with real Alpaca API
+const DEMO_MODE = false;
+
+// Console state
+let consoleState = {
+    autoScroll: true,
+    verbose: true,
+    maxLines: 500
+};
+
 // State management
 let tradingState = {
     isRunning: false,
     isPaused: false,
-    authenticated: false,
+    authenticated: DEMO_MODE, // Auto-authenticate in demo mode
     intervalId: null,
     liveUpdateIntervalId: null,
     config: {
@@ -42,12 +52,14 @@ let tradingState = {
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Alpaca AI Trading System Initialized');
+    logToConsole('SYSTEM', '🚀 Alpaca AI Trading System Initialized');
     
     // Initialize UI elements
     initializeEventListeners();
     updateRiskToleranceDisplay();
     
     // Check server health and authentication
+    logToConsole('SYSTEM', 'Checking server health...');
     await checkServerHealth();
     await checkAuthStatus();
     
@@ -55,6 +67,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     startLiveUpdates();
     
     console.log('✅ System ready');
+    logToConsole('SYSTEM', '✅ System ready - All systems operational', 'success');
+    
+    if (DEMO_MODE) {
+        logToConsole('SYSTEM', '🎮 DEMO MODE ACTIVE - No real money or API keys required', 'warning');
+    }
 });
 
 // ============================================================================
@@ -114,14 +131,22 @@ function updateConfig() {
 
 async function handleStart() {
     console.log('🚐 Starting trading system...');
+    logToConsole('SYSTEM', '🚐 Starting trading system...', 'info');
     
-    if (!tradingState.authenticated) {
+    if (!DEMO_MODE && !tradingState.authenticated) {
         addTradeLog('⚠️ Authenticating with Alpaca...', 'warning');
+        logToConsole('API', 'Authenticating with Alpaca Markets...', 'warning');
         const loginSuccess = await login();
         if (!loginSuccess) {
             addTradeLog('❌ Authentication failed. Check your API keys in config.py', 'error');
+            logToConsole('API', '❌ Authentication failed', 'error');
             return;
         }
+    }
+    
+    if (DEMO_MODE) {
+        addTradeLog('🎮 DEMO MODE: Running simulated trading (no real money)', 'info');
+        logToConsole('SYSTEM', '🎮 DEMO MODE: Running simulated trading', 'info');
     }
     
     tradingState.isRunning = true;
@@ -133,11 +158,13 @@ async function handleStart() {
     document.getElementById('resetBtn').disabled = false;
     
     addTradeLog('✅ Trading system started', 'success');
+    logToConsole('SYSTEM', `✅ Trading started with ${tradingState.config.algorithm} algorithm`, 'success');
+    logToConsole('SYSTEM', `Configuration: Capital=$${tradingState.config.initialCapital}, Risk=${tradingState.config.riskTolerance}, Speed=${tradingState.config.tradingSpeed}ms`, 'info');
     updateAIExplanation('System active. Analyzing market conditions and executing trades based on ' + tradingState.config.algorithm + ' algorithm.');
     
     // Start trading loop and ensure live updates are running
     startTradingLoop();
-    if (!tradingState.liveUpdateIntervalId) {
+    if (!tradingState.liveUpdateIntervalId && !DEMO_MODE) {
         startLiveUpdates();
     }
 }
@@ -156,6 +183,7 @@ async function handlePause() {
             </span>
         `;
         addTradeLog('▶️ Trading resumed', 'info');
+        logToConsole('SYSTEM', '▶️ Trading resumed', 'success');
         startTradingLoop();
     } else {
         // Pause
@@ -172,11 +200,13 @@ async function handlePause() {
             </span>
         `;
         addTradeLog('⏸️ Trading paused', 'warning');
+        logToConsole('SYSTEM', '⏸️ Trading paused - All operations suspended', 'warning');
     }
 }
 
 async function handleReset() {
     console.log('🔄 Resetting system...');
+    logToConsole('SYSTEM', '🔄 Reset requested by user', 'warning');
     
     if (confirm('Are you sure you want to reset? This will stop all trading and clear data.')) {
         // Stop trading
@@ -187,12 +217,15 @@ async function handleReset() {
             tradingState.intervalId = null;
         }
         
+        logToConsole('SYSTEM', 'Stopping all trading operations...', 'info');
+        
         // Reset circuit breaker
         try {
             await fetch(`${API_BASE_URL}/circuit-breaker/reset`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
+            logToConsole('API', 'Circuit breaker reset', 'success');
         } catch (error) {
             console.error('Circuit breaker reset error:', error);
         }
@@ -212,16 +245,21 @@ async function handleReset() {
             totalTrades: 0
         };
         
+        logToConsole('SYSTEM', 'Resetting portfolio and metrics...', 'info');
         updatePortfolioDisplay();
         document.getElementById('tradeLog').innerHTML = '<div class="no-trades">System reset. Ready to start trading.</div>';
         updateAIExplanation('System idle. Start trading to view AI decision rationale and model interpretability.');
         
         addTradeLog('🔄 System reset complete', 'info');
+        logToConsole('SYSTEM', '✅ System reset complete - Ready for new session', 'success');
+    } else {
+        logToConsole('SYSTEM', 'Reset cancelled by user', 'info');
     }
 }
 
 async function handleEmergencyStop() {
     console.log('🛑 EMERGENCY STOP ACTIVATED');
+    logToConsole('SYSTEM', '🚨 EMERGENCY STOP ACTIVATED', 'error');
     
     try {
         const response = await fetch(`${API_BASE_URL}/circuit-breaker/emergency-stop`, {
@@ -245,6 +283,8 @@ async function handleEmergencyStop() {
             document.getElementById('pauseBtn').disabled = true;
             
             addTradeLog('🛑 EMERGENCY STOP: All trading halted', 'error');
+            logToConsole('SYSTEM', '🛑 All trading operations halted immediately', 'error');
+            logToConsole('SYSTEM', '⚠️ Manual intervention required to reset system', 'warning');
             updateAIExplanation('⚠️ CIRCUIT BREAKER ACTIVATED: Emergency stop triggered. Manual intervention required to reset system.');
             
             alert('🛑 EMERGENCY STOP ACTIVATED\n\nAll trading has been halted. Please review the system before resetting.');
@@ -252,6 +292,7 @@ async function handleEmergencyStop() {
     } catch (error) {
         console.error('Emergency stop error:', error);
         addTradeLog('❌ Emergency stop request failed', 'error');
+        logToConsole('ERROR', `Emergency stop failed: ${error.message}`, 'error');
     }
 }
 
@@ -267,7 +308,11 @@ function startTradingLoop() {
     tradingState.intervalId = setInterval(async () => {
         if (tradingState.isRunning && !tradingState.isPaused) {
             await executeTradingCycle();
-            await loadPositions(); // Update positions table
+            if (!DEMO_MODE) {
+                await loadPositions(); // Update positions table
+            } else {
+                updateDemoPortfolio(); // Update demo portfolio
+            }
         }
     }, tradingState.config.tradingSpeed);
 }
@@ -276,6 +321,10 @@ async function executeTradingCycle() {
     try {
         // Simulate AI trading decision
         const decision = generateTradingDecision();
+        
+        if (consoleState.verbose) {
+            logToConsole('DECISION', `AI analyzing market... Action: ${decision.action} | Symbol: ${decision.symbol} | Confidence: ${decision.confidence}`, 'info');
+        }
         
         if (decision.action !== 'HOLD') {
             await executeTradeDecision(decision);
@@ -287,6 +336,7 @@ async function executeTradingCycle() {
     } catch (error) {
         console.error('Trading cycle error:', error);
         addTradeLog(`❌ Error in trading cycle: ${error.message}`, 'error');
+        logToConsole('ERROR', `Trading cycle error: ${error.message}`, 'error');
     }
 }
 
@@ -350,17 +400,37 @@ async function executeTradeDecision(decision) {
     
     if (action === 'BUY') {
         addTradeLog(`🟢 BUY ${quantity} ${symbol} - ${reason} (Confidence: ${confidence})`, 'success');
+        logToConsole('TRADE', `🟢 BUY ${quantity} shares of ${symbol} @ confidence ${confidence}`, 'success');
+        logToConsole('DECISION', `Reason: ${reason}`, 'info');
         
         // Simulate trade execution
         tradingState.metrics.totalTrades++;
+        
+        // In demo mode, simulate portfolio impact
+        if (DEMO_MODE) {
+            const estimatedPrice = 150 + Math.random() * 50;
+            const cost = quantity * estimatedPrice;
+            tradingState.portfolio.value -= cost * 0.001; // Small cost for trade
+            logToConsole('TRADE', `Estimated cost: $${cost.toFixed(2)} | Portfolio: $${tradingState.portfolio.value.toFixed(2)}`, 'info');
+        }
         
         // Update AI explanation
         updateAIExplanation(`${tradingState.config.algorithm} Algorithm Decision: BUY ${symbol}\n\nRationale: ${reason}\nConfidence Score: ${confidence}\nRisk Level: ${tradingState.config.riskTolerance.toFixed(2)}\n\nThe model analyzed technical indicators, market sentiment, and historical patterns to make this decision.`);
         
     } else if (action === 'SELL') {
         addTradeLog(`🔴 SELL ${quantity} ${symbol} - ${reason} (Confidence: ${confidence})`, 'error');
+        logToConsole('TRADE', `🔴 SELL ${quantity} shares of ${symbol} @ confidence ${confidence}`, 'warning');
+        logToConsole('DECISION', `Reason: ${reason}`, 'info');
         
         tradingState.metrics.totalTrades++;
+        
+        // In demo mode, simulate portfolio impact
+        if (DEMO_MODE) {
+            const estimatedPrice = 150 + Math.random() * 50;
+            const revenue = quantity * estimatedPrice;
+            tradingState.portfolio.value += revenue * 0.002; // Small gain for trade
+            logToConsole('TRADE', `Estimated revenue: $${revenue.toFixed(2)} | Portfolio: $${tradingState.portfolio.value.toFixed(2)}`, 'info');
+        }
         
         updateAIExplanation(`${tradingState.config.algorithm} Algorithm Decision: SELL ${symbol}\n\nRationale: ${reason}\nConfidence Score: ${confidence}\nRisk Level: ${tradingState.config.riskTolerance.toFixed(2)}\n\nThe model identified optimal exit conditions based on technical analysis and risk management protocols.`);
     }
@@ -467,10 +537,8 @@ async function updateLiveMetrics() {
     if (!tradingState.authenticated) return;
     
     try {
-        const response = await fetch(`${API_BASE_URL}/metrics/live`);
+        const { response, data } = await apiCall('/metrics/live');
         if (response.ok) {
-            const data = await response.json();
-            
             // Update portfolio metrics
             tradingState.portfolio.value = data.portfolio_value;
             tradingState.metrics.totalReturn = data.total_return;
@@ -481,6 +549,10 @@ async function updateLiveMetrics() {
             
             // Update UI
             updateLivePortfolioDisplay(data);
+            
+            if (consoleState.verbose) {
+                logToConsole('API', `Live metrics - Portfolio: $${data.portfolio_value.toFixed(2)}, Return: ${data.total_return_percent.toFixed(2)}%`, 'info');
+            }
         }
     } catch (error) {
         console.error('Live metrics update error:', error);
@@ -519,16 +591,15 @@ function updateLivePortfolioDisplay(data) {
 
 async function updateRiskLimits() {
     try {
-        const response = await fetch(`${API_BASE_URL}/risk/limits`, {
+        const { response, data } = await apiCall('/risk/limits', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(tradingState.riskLimits)
         });
         
-        const data = await response.json();
-        
         if (data.success) {
             addTradeLog('✅ Risk limits updated', 'success');
+            logToConsole('SYSTEM', `Risk limits: Max trades=${tradingState.riskLimits.maxDailyTrades}, Max loss=${tradingState.riskLimits.maxDailyLossPercent}%`, 'success');
             return true;
         } else {
             addTradeLog(`❌ Failed to update risk limits: ${data.message}`, 'error');
@@ -543,16 +614,15 @@ async function updateRiskLimits() {
 
 async function setStopLoss(symbol, stopPrice) {
     try {
-        const response = await fetch(`${API_BASE_URL}/risk/stop-loss`, {
+        const { response, data } = await apiCall('/risk/stop-loss', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ symbol, stop_price: stopPrice })
         });
         
-        const data = await response.json();
-        
         if (data.success) {
             addTradeLog(`✅ Stop-loss set for ${symbol} at $${stopPrice}`, 'success');
+            logToConsole('TRADE', `Stop-loss order placed: ${symbol} @ $${stopPrice}`, 'success');
             return true;
         } else {
             addTradeLog(`❌ Failed to set stop-loss: ${data.message}`, 'error');
@@ -567,16 +637,15 @@ async function setStopLoss(symbol, stopPrice) {
 
 async function setTakeProfit(symbol, limitPrice) {
     try {
-        const response = await fetch(`${API_BASE_URL}/risk/take-profit`, {
+        const { response, data } = await apiCall('/risk/take-profit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ symbol, limit_price: limitPrice })
         });
         
-        const data = await response.json();
-        
         if (data.success) {
             addTradeLog(`✅ Take-profit set for ${symbol} at $${limitPrice}`, 'success');
+            logToConsole('TRADE', `Take-profit order placed: ${symbol} @ $${limitPrice}`, 'success');
             return true;
         } else {
             addTradeLog(`❌ Failed to set take-profit: ${data.message}`, 'error');
@@ -591,19 +660,19 @@ async function setTakeProfit(symbol, limitPrice) {
 
 async function closeAllPositions() {
     if (!confirm('⚠️ Are you sure you want to close ALL positions? This action cannot be undone.')) {
+        logToConsole('USER', 'Close all positions cancelled by user', 'info');
         return false;
     }
     
     try {
-        const response = await fetch(`${API_BASE_URL}/risk/close-all`, {
+        const { response, data } = await apiCall('/risk/close-all', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });
         
-        const data = await response.json();
-        
         if (data.success) {
             addTradeLog('🚨 All positions closed (emergency liquidation)', 'warning');
+            logToConsole('TRADE', '🚨 EMERGENCY LIQUIDATION - All positions closed', 'warning');
             return true;
         } else {
             addTradeLog(`❌ Failed to close positions: ${data.message}`, 'error');
@@ -620,10 +689,12 @@ async function loadPositions() {
     if (!tradingState.authenticated) return;
     
     try {
-        const response = await fetch(`${API_BASE_URL}/account/positions`);
+        const { response, data } = await apiCall('/account/positions');
         if (response.ok) {
-            const data = await response.json();
             updatePositionsTable(data.positions);
+            if (data.positions && data.positions.length > 0) {
+                logToConsole('API', `Loaded ${data.positions.length} open position(s)`, 'success');
+            }
         }
     } catch (error) {
         console.error('Load positions error:', error);
@@ -659,6 +730,39 @@ function updatePositionsTable(positions) {
 // ============================================================================
 // UI UPDATES
 // ============================================================================
+
+// Demo portfolio update function
+function updateDemoPortfolio() {
+    // Simulate portfolio value changes
+    const change = (Math.random() - 0.48) * 0.5; // Slight upward bias
+    tradingState.portfolio.value += change;
+    
+    const initialCapital = tradingState.config.initialCapital;
+    const totalReturn = tradingState.portfolio.value - initialCapital;
+    const returnPercent = (totalReturn / initialCapital) * 100;
+    
+    // Update metrics
+    tradingState.metrics.totalReturn = totalReturn;
+    
+    // Update UI
+    document.getElementById('currentValue').textContent = `$${tradingState.portfolio.value.toFixed(2)}`;
+    document.getElementById('valueChange').textContent = `${returnPercent >= 0 ? '+' : ''}${returnPercent.toFixed(2)}%`;
+    document.getElementById('valueChange').className = `metric-change ${returnPercent >= 0 ? 'positive' : 'negative'}`;
+    
+    document.getElementById('totalReturn').textContent = `$${totalReturn.toFixed(2)}`;
+    document.getElementById('returnPercent').textContent = `${returnPercent >= 0 ? '+' : ''}${returnPercent.toFixed(2)}%`;
+    document.getElementById('returnPercent').className = `metric-change ${returnPercent >= 0 ? 'positive' : 'negative'}`;
+    
+    // Update other metrics with simulated values
+    tradingState.metrics.sharpeRatio = 0.5 + Math.random() * 1.5;
+    tradingState.metrics.maxDrawdown = Math.random() * 5;
+    tradingState.metrics.winRate = 45 + Math.random() * 20;
+    
+    document.getElementById('sharpeRatio').textContent = tradingState.metrics.sharpeRatio.toFixed(2);
+    document.getElementById('maxDrawdown').textContent = `${tradingState.metrics.maxDrawdown.toFixed(2)}%`;
+    document.getElementById('winRate').textContent = `${tradingState.metrics.winRate.toFixed(2)}%`;
+    document.getElementById('totalTrades').textContent = tradingState.metrics.totalTrades;
+}
 
 // This function is no longer needed - all data comes from Alpaca API via updateLiveMetrics()
 // Keeping it as a stub in case it's called from elsewhere
@@ -774,10 +878,166 @@ async function handleSetTakeProfit() {
     }
 }
 
+// ============================================================================
+// CONSOLE FUNCTIONS
+// ============================================================================
+
+function logToConsole(tag, message, type = 'info') {
+    const consoleOutput = document.getElementById('consoleOutput');
+    if (!consoleOutput) return;
+    
+    const timestamp = new Date().toLocaleTimeString();
+    const line = document.createElement('div');
+    line.className = `console-line ${type}`;
+    
+    const tagClass = tag.toLowerCase().replace(/\s+/g, '-');
+    
+    line.innerHTML = `
+        <span class="console-timestamp">[${timestamp}]</span>
+        <span class="console-tag ${tagClass}">[${tag}]</span>
+        <span class="console-message">${message}</span>
+    `;
+    
+    consoleOutput.appendChild(line);
+    
+    // Auto-scroll if enabled
+    if (consoleState.autoScroll) {
+        consoleOutput.scrollTop = consoleOutput.scrollHeight;
+    }
+    
+    // Limit console lines
+    while (consoleOutput.children.length > consoleState.maxLines) {
+        consoleOutput.removeChild(consoleOutput.firstChild);
+    }
+}
+
+function clearConsole() {
+    const consoleOutput = document.getElementById('consoleOutput');
+    consoleOutput.innerHTML = '';
+    logToConsole('SYSTEM', 'Console cleared', 'info');
+}
+
+function toggleConsoleAutoScroll() {
+    consoleState.autoScroll = !consoleState.autoScroll;
+    document.getElementById('autoScrollStatus').textContent =
+        `Auto-Scroll: ${consoleState.autoScroll ? 'ON' : 'OFF'}`;
+    logToConsole('SYSTEM', `Auto-scroll ${consoleState.autoScroll ? 'enabled' : 'disabled'}`, 'info');
+}
+
+// ============================================================================
+// EDITABLE METRICS FUNCTIONS
+// ============================================================================
+
+function editMetric(elementId, label, suffix) {
+    const element = document.getElementById(elementId);
+    const currentValue = element.textContent.replace(/[$%,]/g, '');
+    
+    const newValue = prompt(`Edit ${label}:`, currentValue);
+    
+    if (newValue !== null && newValue !== '') {
+        const numValue = parseFloat(newValue);
+        if (!isNaN(numValue)) {
+            // Update the display
+            if (suffix === '$') {
+                element.textContent = `$${numValue.toFixed(2)}`;
+            } else if (suffix === '%') {
+                element.textContent = `${numValue.toFixed(2)}%`;
+            } else {
+                element.textContent = numValue.toFixed(2);
+            }
+            
+            // Update internal state
+            if (elementId === 'currentValue') {
+                tradingState.portfolio.value = numValue;
+            } else if (elementId === 'totalTrades') {
+                tradingState.metrics.totalTrades = Math.floor(numValue);
+                element.textContent = Math.floor(numValue);
+            } else if (elementId === 'sharpeRatio') {
+                tradingState.metrics.sharpeRatio = numValue;
+            } else if (elementId === 'maxDrawdown') {
+                tradingState.metrics.maxDrawdown = numValue;
+            } else if (elementId === 'winRate') {
+                tradingState.metrics.winRate = numValue;
+            }
+            
+            // Flash animation
+            element.classList.add('value-flash');
+            setTimeout(() => element.classList.remove('value-flash'), 500);
+            
+            logToConsole('USER', `${label} manually updated to ${element.textContent}`, 'info');
+        } else {
+            alert('Please enter a valid number');
+        }
+    }
+}
+
+function editSentiment() {
+    const sentiments = ['Bullish 📈', 'Bearish 📉', 'Neutral ➡️', 'Very Bullish 🚀', 'Very Bearish 💥'];
+    const current = document.getElementById('newsSentiment').textContent;
+    
+    let message = 'Select News Sentiment:\n\n';
+    sentiments.forEach((s, i) => {
+        message += `${i + 1}. ${s}\n`;
+    });
+    
+    const choice = prompt(message, '1');
+    const index = parseInt(choice) - 1;
+    
+    if (index >= 0 && index < sentiments.length) {
+        document.getElementById('newsSentiment').textContent = sentiments[index];
+        logToConsole('USER', `News sentiment changed to: ${sentiments[index]}`, 'info');
+    }
+}
+
+function editIndicator(elementId, label) {
+    const element = document.getElementById(elementId);
+    const currentValue = element.textContent;
+    
+    const newValue = prompt(`Edit ${label}:`, currentValue);
+    
+    if (newValue !== null && newValue !== '') {
+        element.textContent = newValue;
+        
+        // Flash animation
+        element.classList.add('value-flash');
+        setTimeout(() => element.classList.remove('value-flash'), 500);
+        
+        logToConsole('USER', `${label} manually updated to ${newValue}`, 'info');
+    }
+}
+
+// ============================================================================
+// ENHANCED LOGGING FOR EXISTING FUNCTIONS
+// ============================================================================
+
+// Override console.log to also log to UI console
+const originalConsoleLog = console.log;
+console.log = function(...args) {
+    originalConsoleLog.apply(console, args);
+    if (consoleState.verbose && document.getElementById('consoleOutput')) {
+        const message = args.join(' ');
+        if (message.includes('✅')) {
+            logToConsole('SYSTEM', message, 'success');
+        } else if (message.includes('❌') || message.includes('ERROR')) {
+            logToConsole('SYSTEM', message, 'error');
+        } else if (message.includes('⚠️')) {
+            logToConsole('SYSTEM', message, 'warning');
+        } else {
+            logToConsole('DEBUG', message, 'info');
+        }
+    }
+};
+
 // Make functions globally accessible
 window.updateRiskLimits = updateRiskLimits;
 window.handleSetStopLoss = handleSetStopLoss;
 window.handleSetTakeProfit = handleSetTakeProfit;
 window.closeAllPositions = closeAllPositions;
+window.clearConsole = clearConsole;
+window.toggleConsoleAutoScroll = toggleConsoleAutoScroll;
+window.editMetric = editMetric;
+window.editSentiment = editSentiment;
+window.editIndicator = editIndicator;
 
 console.log('📊 Alpaca AI Trading System loaded');
+logToConsole('SYSTEM', '📊 All modules loaded successfully', 'success');

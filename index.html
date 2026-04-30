@@ -12,6 +12,9 @@
             <h1>⚡ Alpaca AI Trading System</h1>
             <p class="subtitle">Reinforcement Learning Portfolio Management Platform</p>
             <p class="tagline">Advanced Algorithmic Trading with Real-Time Market Analysis</p>
+            <div style="background: #00E676; color: #0A0E27; padding: 10px; border-radius: 5px; margin-top: 10px; text-align: center; font-weight: bold;">
+                📡 LIVE PAPER TRADING MODE - Connected to Alpaca Paper Trading API
+            </div>
         </header>
 
         <div class="dashboard">
@@ -96,38 +99,59 @@
                 </div>
             </section>
 
+            <!-- Live System Console -->
+            <section class="console-section">
+                <h2>🖥️ Live System Console</h2>
+                <div class="console-controls">
+                    <button class="btn-small btn-secondary" onclick="clearConsole()">Clear Console</button>
+                    <button class="btn-small btn-secondary" onclick="toggleConsoleAutoScroll()">
+                        <span id="autoScrollStatus">Auto-Scroll: ON</span>
+                    </button>
+                    <label style="color: var(--text-secondary); margin-left: 15px;">
+                        <input type="checkbox" id="verboseMode" checked> Verbose Mode
+                    </label>
+                </div>
+                <div class="console-output" id="consoleOutput">
+                    <div class="console-line system">
+                        <span class="console-timestamp">[00:00:00]</span>
+                        <span class="console-tag">[SYSTEM]</span>
+                        <span class="console-message">System initialized. Waiting for commands...</span>
+                    </div>
+                </div>
+            </section>
+
             <!-- Portfolio Overview -->
             <section class="portfolio-overview">
-                <h2>📊 Portfolio Performance Metrics</h2>
+                <h2>📊 Portfolio Performance Metrics <span style="font-size: 0.7em; color: var(--text-muted);">(Click values to edit)</span></h2>
                 <div class="metrics-grid">
                     <div class="metric-card">
                         <div class="metric-label">💼 Portfolio Value</div>
-                        <div class="metric-value" id="currentValue">$10.00</div>
+                        <div class="metric-value editable" id="currentValue" onclick="editMetric('currentValue', 'Portfolio Value', '$')" title="Click to edit">$10.00</div>
                         <div class="metric-change" id="valueChange">+0.00%</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">📈 Total Return</div>
-                        <div class="metric-value" id="totalReturn">$0.00</div>
+                        <div class="metric-value editable" id="totalReturn" onclick="editMetric('totalReturn', 'Total Return', '$')" title="Click to edit">$0.00</div>
                         <div class="metric-change" id="returnPercent">0.00%</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">📉 Sharpe Ratio</div>
-                        <div class="metric-value" id="sharpeRatio">0.00</div>
+                        <div class="metric-value editable" id="sharpeRatio" onclick="editMetric('sharpeRatio', 'Sharpe Ratio', '')" title="Click to edit">0.00</div>
                         <div class="metric-info">Risk-adjusted return</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">⚠️ Max Drawdown</div>
-                        <div class="metric-value" id="maxDrawdown">0.00%</div>
+                        <div class="metric-value editable" id="maxDrawdown" onclick="editMetric('maxDrawdown', 'Max Drawdown', '%')" title="Click to edit">0.00%</div>
                         <div class="metric-info">Peak-to-trough decline</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">✅ Win Rate</div>
-                        <div class="metric-value" id="winRate">0.00%</div>
+                        <div class="metric-value editable" id="winRate" onclick="editMetric('winRate', 'Win Rate', '%')" title="Click to edit">0.00%</div>
                         <div class="metric-info">Profitable trades</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">🔢 Total Trades</div>
-                        <div class="metric-value" id="totalTrades">0</div>
+                        <div class="metric-value editable" id="totalTrades" onclick="editMetric('totalTrades', 'Total Trades', '')" title="Click to edit">0</div>
                         <div class="metric-info">Executed positions</div>
                     </div>
                 </div>
@@ -140,17 +164,17 @@
                     <div class="sentiment-card">
                         <div class="sentiment-icon">📰</div>
                         <div class="sentiment-label">News Sentiment</div>
-                        <div class="sentiment-value" id="newsSentiment">Neutral</div>
+                        <div class="sentiment-value editable" id="newsSentiment" onclick="editSentiment()" title="Click to edit">Neutral</div>
                     </div>
                     <div class="sentiment-card">
                         <div class="sentiment-icon">📊</div>
                         <div class="sentiment-label">Volatility Index (VIX)</div>
-                        <div class="sentiment-value" id="vixValue">15.2</div>
+                        <div class="sentiment-value editable" id="vixValue" onclick="editMetric('vixValue', 'VIX', '')" title="Click to edit">15.2</div>
                     </div>
                     <div class="sentiment-card">
                         <div class="sentiment-icon">🤖</div>
                         <div class="sentiment-label">AI Confidence</div>
-                        <div class="sentiment-value" id="aiConfidence">85%</div>
+                        <div class="sentiment-value editable" id="aiConfidence" onclick="editMetric('aiConfidence', 'AI Confidence', '%')" title="Click to edit">85%</div>
                     </div>
                 </div>
             </section>
@@ -190,50 +214,50 @@
 
             <!-- Technical Indicators -->
             <section class="indicators-section">
-                <h2>📈 Technical Analysis Indicators</h2>
+                <h2>📈 Technical Analysis Indicators <span style="font-size: 0.7em; color: var(--text-muted);">(Click to edit)</span></h2>
                 <div class="indicators-grid">
                     <div class="indicator-card">
                         <h3>📈 Trend Tracker</h3>
                         <div class="indicator-item">
                             <span>SMA (50)</span>
-                            <span id="sma50">--</span>
+                            <span class="editable" id="sma50" onclick="editIndicator('sma50', 'SMA (50)')" title="Click to edit">--</span>
                         </div>
                         <div class="indicator-item">
                             <span>EMA (20)</span>
-                            <span id="ema20">--</span>
+                            <span class="editable" id="ema20" onclick="editIndicator('ema20', 'EMA (20)')" title="Click to edit">--</span>
                         </div>
                     </div>
                     <div class="indicator-card">
                         <h3>⚡ Momentum Meter</h3>
                         <div class="indicator-item">
                             <span>RSI</span>
-                            <span id="rsi">--</span>
+                            <span class="editable" id="rsi" onclick="editIndicator('rsi', 'RSI')" title="Click to edit">--</span>
                         </div>
                         <div class="indicator-item">
                             <span>MACD</span>
-                            <span id="macd">--</span>
+                            <span class="editable" id="macd" onclick="editIndicator('macd', 'MACD')" title="Click to edit">--</span>
                         </div>
                     </div>
                     <div class="indicator-card">
-                        <h3>🎢 Spookiness Level</h3>
+                        <h3>🎢 Volatility Level</h3>
                         <div class="indicator-item">
                             <span>Bollinger Bands</span>
-                            <span id="bollinger">--</span>
+                            <span class="editable" id="bollinger" onclick="editIndicator('bollinger', 'Bollinger Bands')" title="Click to edit">--</span>
                         </div>
                         <div class="indicator-item">
                             <span>ATR</span>
-                            <span id="atr">--</span>
+                            <span class="editable" id="atr" onclick="editIndicator('atr', 'ATR')" title="Click to edit">--</span>
                         </div>
                     </div>
                     <div class="indicator-card">
-                        <h3>📢 Activity Detector</h3>
+                        <h3>📢 Volume Detector</h3>
                         <div class="indicator-item">
                             <span>OBV</span>
-                            <span id="obv">--</span>
+                            <span class="editable" id="obv" onclick="editIndicator('obv', 'OBV')" title="Click to edit">--</span>
                         </div>
                         <div class="indicator-item">
                             <span>VWAP</span>
-                            <span id="vwap">--</span>
+                            <span class="editable" id="vwap" onclick="editIndicator('vwap', 'VWAP')" title="Click to edit">--</span>
                         </div>
                     </div>
                 </div>
