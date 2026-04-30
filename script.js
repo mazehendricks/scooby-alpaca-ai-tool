@@ -514,10 +514,10 @@ function startLiveUpdates() {
         clearInterval(tradingState.liveUpdateIntervalId);
     }
     
-    // Update every 2 seconds
+    // Update every 1 second for real-time P&L tracking
     tradingState.liveUpdateIntervalId = setInterval(async () => {
         await updateLiveMetrics();
-    }, 2000);
+    }, 1000);
     
     // Initial update
     updateLiveMetrics();

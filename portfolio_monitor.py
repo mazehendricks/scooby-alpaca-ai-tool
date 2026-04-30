@@ -23,7 +23,7 @@ ALPACA_API_KEY = os.getenv('ALPACA_API_KEY')
 ALPACA_SECRET_KEY = os.getenv('ALPACA_SECRET_KEY')
 ENABLE_PAPER_TRADING = os.getenv('ENABLE_PAPER_TRADING', 'True').lower() == 'true'
 BASE_URL = 'https://paper-api.alpaca.markets' if ENABLE_PAPER_TRADING else 'https://api.alpaca.markets'
-REFRESH_INTERVAL = 5  # seconds
+REFRESH_INTERVAL = 1  # seconds - real-time updates
 
 # Initialize API
 api = tradeapi.REST(
