@@ -250,25 +250,61 @@ section h2 {
 
 /* Buttons - Groovy Style */
 .action-buttons {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 15px;
-    flex-wrap: wrap;
 }
 
 .btn {
-    padding: 15px 30px;
+    padding: 18px 24px;
     border: none;
     border-radius: 12px;
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 800;
     cursor: pointer;
     transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 1px;
     font-family: 'Comic Sans MS', cursive;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
     position: relative;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 70px;
+}
+
+.btn-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+    filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.btn-label {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    text-align: left;
+    flex: 1;
+}
+
+.btn-main {
+    font-size: 1.1rem;
+    font-weight: 900;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    line-height: 1.2;
+    display: block;
+}
+
+.btn-sub {
+    font-size: 0.75rem;
+    font-weight: 600;
+    opacity: 0.9;
+    text-transform: none;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+    display: block;
 }
 
 .btn::before {
@@ -1099,11 +1135,24 @@ footer strong {
     }
     
     .action-buttons {
-        flex-direction: column;
+        grid-template-columns: 1fr;
     }
     
     .btn {
         width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .btn-icon {
+        font-size: 1.8rem;
+    }
+    
+    .btn-main {
+        font-size: 1rem;
+    }
+    
+    .btn-sub {
+        font-size: 0.7rem;
     }
     
     .trade-item {

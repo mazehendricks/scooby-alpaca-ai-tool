@@ -1,25 +1,25 @@
 # AI Trading Bot - Python Dependencies (Alpaca)
 
 # Core Trading Library
-alpaca-trade-api==3.0.2
+alpaca-trade-api>=3.0.2
 
 # Web Framework for API
-flask==3.0.0
-flask-cors==4.0.0
+flask>=3.0.0
+flask-cors>=4.0.0
 
 # Security & Authentication
-python-dotenv==1.0.0
-cryptography==41.0.7
+python-dotenv>=1.0.0
+cryptography>=41.0.7
 
 # Data Processing
-pandas==2.1.4
-numpy==1.26.2
+pandas>=2.1.4
+numpy>=1.26.2
 
 # Rate Limiting & Safety
-ratelimit==2.2.1
+ratelimit>=2.2.1
 
 # Logging
-colorlog==6.8.0
+colorlog>=6.8.0
 
 # Date/Time handling
-python-dateutil==2.8.2
+python-dateutil>=2.8.2
